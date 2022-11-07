@@ -427,7 +427,9 @@ export class ServiceTypeGenerator extends GeneratorBase {
                 )
               ),
               ts.createPropertyAssignment(
-                ts.createIdentifier("subscriber"),
+                kind === "EVENT"
+                ? ts.createIdentifier("publisher")
+                : ts.createIdentifier("subscriber"),
                 ts.createPropertyAccess(
                   ts.createIdentifier("Services"),
                   ts.createIdentifier(service)
