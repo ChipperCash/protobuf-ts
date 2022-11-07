@@ -332,15 +332,23 @@ export class ProtobuftsPlugin extends PluginBase {
                 isQetaService = true
                 const methodName = camelToUnderscore(method.name!)
                 fileTable.register(`${methodName}.publisher.ts`, fileDescriptor, `${methodName}_publisher`)
+                fileTable.register(`${methodName}.subscriber.ts`, fileDescriptor, `${methodName}_subscriber`)
               }
             }
             i++
           }
-          // Remove this check to test qeta code locally. Protobuf-ts tests do not populate options so this will always be false.
+          // NB: To test qeta code generation locally.
+          // 1. Remove the check below as well as modify code above
+          //    to register publisher and subscriber files outside of the options for loop.
+          // 2. Populate kind variable by modifyig service-type-generator.ts generateQetaPublishers
+          //    generateQetaSubscriber functions accordingly.
+          // Protobuf-ts plugin tests do not populate options so this will always be false in local testing.
           if (isQetaService) {
             genServiceType.generateQetaServiceConfig(outMain, descriptor)
-            const publisherFiles: OutFile[] = genServiceType.generateQetaPublisher(descriptor, fileTable, fileDescriptor, registry, options)
+            const publisherFiles: OutFile[] = genServiceType.generateQetaPublishers(descriptor, fileTable, fileDescriptor, registry, options)
+            const subscriberFiles: OutFile[] = genServiceType.generateQetaSubscribers(descriptor, fileTable, fileDescriptor, registry, options)
             publisherFiles.map(file => tsFiles.push(file))
+            subscriberFiles.map(file => tsFiles.push(file))
           }
           // clients
           const clientStyles = optionResolver.getClientStyles(descriptor);

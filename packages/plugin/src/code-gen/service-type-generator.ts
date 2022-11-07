@@ -273,7 +273,47 @@ export class ServiceTypeGenerator extends GeneratorBase {
     return;
   }
 
-  generateQetaPublisher (
+  generateQetaSubscribers (
+    descriptor: ServiceDescriptorProto,
+    fileTable: FileTable,
+    fileDescriptor: FileDescriptorProto,
+    registry: DescriptorRegistry,
+    options: InternalOptions): OutFile[]
+  {
+    const files: OutFile[] = []
+    let i = 0;
+    for (const method of descriptor.method) {
+      const methodName = method.name!
+      const source = new OutFile(
+        fileTable.get(fileDescriptor, `${camelToUnderscore(methodName)}_subscriber`).name, fileDescriptor, registry, options);
+      const interpreterType = this.interpreter.getServiceType(descriptor);
+      let kind: string | undefined
+      for (const [optionName, value] of Object.entries(interpreterType.methods[i].options)) {
+        if (optionName === qetaKindOptionName) {
+          kind = value?.toString()
+        }
+      }
+      i++
+      // NB: Uncomment this to test locally. protobufts-plugin.spec.ts does not populate options info.
+      // kind = "ACTION"
+      if (kind) {
+        const pluralLowerCaseKind = `${kind?.toLowerCase()}s`
+        this.imports.name(source, pluralLowerCaseKind, "@chippercash/chipper-common")
+        source.addStatement(this.generateSubcriberConfigStatement(methodName, kind))
+        source.addStatement(this.generateSubcriberTypeReferenceStatement("Request", methodName, "Params", kind))
+        const hasResponse: boolean = kind === "ACTION" || kind === "QUESTION"
+        if (hasResponse) {
+          source.addStatement(this.generateSubcriberTypeReferenceStatement("Response", methodName, "Response", kind))
+        }
+        source.addStatement(this.generateSubscriberHandlerDeclaration(hasResponse))
+        source.addStatement(this.generateExportSubscriberStatement(kind))
+      }
+      files.push(source)
+    }
+    return files
+  }
+
+  generateQetaPublishers (
     descriptor: ServiceDescriptorProto,
     fileTable: FileTable,
     fileDescriptor: FileDescriptorProto,
@@ -298,6 +338,7 @@ export class ServiceTypeGenerator extends GeneratorBase {
         }
       }
       i++
+      // NB: Uncomment this to test locally. protobufts-plugin.spec.ts does not populate options info.
       // kind = "ACTION"
       if (kind) {
         const kindName = kindConfigMap.get(kind)!
@@ -401,7 +442,7 @@ export class ServiceTypeGenerator extends GeneratorBase {
     )
   }
 
-  createRequestResponseConfigStatement(
+  private createRequestResponseConfigStatement(
     kind: string,
     kindConfigName: string,
     kindCollectionName: string,
@@ -452,7 +493,7 @@ export class ServiceTypeGenerator extends GeneratorBase {
     )
   }
 
-  createRequestOnlyPublishFunction(kindName: string) : ts.FunctionDeclaration {
+  private createRequestOnlyPublishFunction(kindName: string) : ts.FunctionDeclaration {
     return ts.createFunctionDeclaration(
       undefined,
       [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
@@ -519,7 +560,7 @@ export class ServiceTypeGenerator extends GeneratorBase {
     )
   }
 
-  createRequestResponsePublishFunction(kindName: string) : ts.FunctionDeclaration {
+  private createRequestResponsePublishFunction(kindName: string) : ts.FunctionDeclaration {
     return ts.createFunctionDeclaration(
       undefined,
       [ts.createModifier(ts.SyntaxKind.ExportKeyword)],
@@ -589,5 +630,126 @@ export class ServiceTypeGenerator extends GeneratorBase {
     )
   }
 
+  private generateSubcriberConfigStatement(methodName: string, kind: string) : ts.VariableStatement {
+    const configMethod = methodName[0].toLowerCase() + methodName.slice(1, methodName.length)
+    return ts.createVariableStatement(
+      undefined,
+      ts.createVariableDeclarationList(
+        [ts.createVariableDeclaration(
+          ts.createIdentifier("config"),
+          undefined,
+          ts.createPropertyAccess(
+            ts.createPropertyAccess(
+              ts.createIdentifier(`${kind!.toLowerCase()}s`),
+              ts.createIdentifier(`${configMethod}`)
+            ),
+            ts.createIdentifier("config")
+          )
+        )],
+        ts.NodeFlags.Const
+      )
+    )
+  }
+
+  private generateSubcriberTypeReferenceStatement(name: string, methodName: string, propertyName: string, kind: string) : ts.TypeAliasDeclaration {
+    const configMethod = methodName[0].toLowerCase() + methodName.slice(1, methodName.length)
+    return ts.createTypeAliasDeclaration(
+      undefined,
+      undefined,
+      ts.createIdentifier(`${name}`),
+      undefined,
+      ts.createTypeReferenceNode(
+        ts.createQualifiedName(
+          ts.createQualifiedName(
+            ts.createIdentifier(`${kind!.toLowerCase()}s`),
+            ts.createIdentifier(`${configMethod}`)
+          ),
+          ts.createIdentifier(`${propertyName}`)
+        ),
+        undefined
+      )
+    )
+  }
+
+  private generateSubscriberHandlerDeclaration(hasResponse: boolean) : ts.FunctionDeclaration {
+    return ts.createFunctionDeclaration(
+      undefined,
+      [ts.createModifier(ts.SyntaxKind.AsyncKeyword)],
+      undefined,
+      ts.createIdentifier("handler"),
+      undefined,
+      [ts.createParameter(
+        undefined,
+        undefined,
+        undefined,
+        ts.createIdentifier("params"),
+        undefined,
+        ts.createTypeReferenceNode(
+          ts.createIdentifier("Request"),
+          undefined
+        ),
+        undefined
+      )],
+      ts.createTypeReferenceNode(
+        ts.createIdentifier("Promise"),
+        hasResponse 
+        ? [ts.createTypeReferenceNode(
+            ts.createIdentifier("Response"),
+            undefined
+          )]
+        : [ts.createKeywordTypeNode(ts.SyntaxKind.VoidKeyword)]
+      ),
+      hasResponse 
+      ? ts.createBlock(
+          [
+            ts.createVariableStatement(
+              undefined,
+              ts.createVariableDeclarationList(
+                [ts.createVariableDeclaration(
+                  ts.createIdentifier("response"),
+                  ts.createTypeReferenceNode(
+                    ts.createIdentifier("Response"),
+                    undefined
+                  ),
+                  ts.createObjectLiteral(
+                    [],
+                    false
+                  )
+                )],
+                ts.NodeFlags.Const | ts.NodeFlags.AwaitContext | ts.NodeFlags.ContextFlags | ts.NodeFlags.TypeExcludesFlags
+              )
+            ),
+            ts.createReturn(ts.createIdentifier("response"))
+          ],
+          true
+        )
+      : ts.createBlock(
+        [],
+        false
+      )
+    )
+  }
+
+  private generateExportSubscriberStatement(kind: string) : ts.ExportAssignment {
+    const kindConfigName = kindConfigMap.get(kind)
+    return ts.createExportAssignment(
+      undefined,
+      undefined,
+      undefined,
+      ts.createObjectLiteral(
+        [
+          ts.createPropertyAssignment(
+            ts.createIdentifier(`${kind.toLowerCase()}Config`),
+            ts.createIdentifier("config")
+          ),
+          ts.createPropertyAssignment(
+            ts.createIdentifier(`on${kindConfigName}Received`),
+            ts.createIdentifier("handler")
+          )
+        ],
+        false
+      )
+    )    
+  }
 
 }
