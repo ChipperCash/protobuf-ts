@@ -420,7 +420,7 @@ export class ServiceTypeGenerator extends GeneratorBase {
           ts.createObjectLiteral(
             [
               ts.createPropertyAssignment(
-                ts.createIdentifier(kind),
+                ts.createIdentifier(kind.toLowerCase()),
                 ts.createPropertyAccess(
                   ts.createIdentifier(kindCollectionName),
                   ts.createIdentifier(methodName)
@@ -473,7 +473,7 @@ export class ServiceTypeGenerator extends GeneratorBase {
           ts.createObjectLiteral(
             [
               ts.createPropertyAssignment(
-                ts.createIdentifier(kind),
+                ts.createIdentifier(kind.toLowerCase()),
                 ts.createPropertyAccess(
                   ts.createIdentifier(kindCollectionName),
                   ts.createIdentifier(methodName)
