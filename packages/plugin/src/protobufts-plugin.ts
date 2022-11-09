@@ -330,9 +330,10 @@ export class ProtobuftsPlugin extends PluginBase {
             for (const [optionName, value] of Object.entries(interpreterType.methods[i].options)) {
               if (optionName === qetaKindOptionName) {
                 isQetaService = true
+                const kind = value!.toString()
                 const methodName = camelToUnderscore(method.name!)
-                fileTable.register(`${methodName}.publisher.ts`, fileDescriptor, `${methodName}_publisher`)
-                fileTable.register(`${methodName}.subscriber.ts`, fileDescriptor, `${methodName}_subscriber`)
+                fileTable.register(`${methodName}.${kind.toLowerCase()}.publisher.ts`, fileDescriptor, `${methodName}_publisher`)
+                fileTable.register(`${methodName}.${kind.toLowerCase()}.subscriber.ts`, fileDescriptor, `${methodName}_subscriber`)
               }
             }
             i++

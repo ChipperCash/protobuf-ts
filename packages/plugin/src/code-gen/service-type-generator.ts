@@ -330,7 +330,7 @@ export class ServiceTypeGenerator extends GeneratorBase {
       const interpreterType = this.interpreter.getServiceType(descriptor);
       this.imports.name(source, "QetaQueueManager", "@chippercash/chipper-mq")
       this.imports.name(source, "MessagePublishSettings", "@chippercash/chipper-mq")
-      this.imports.name(source, "Services", "./services")
+      this.imports.name(source, "Services", "../services")
       let kind: string | undefined
       for (const [optionName, value] of Object.entries(interpreterType.methods[i].options)) {
         if (optionName === qetaKindOptionName) {
@@ -345,7 +345,7 @@ export class ServiceTypeGenerator extends GeneratorBase {
         const kindConfigName = `${kindName}Config`
         const kindCollectionName = kindCollectionMap.get(kind)!
         this.imports.name(source, kindConfigName, "@chippercash/chipper-mq")
-        this.imports.name(source, kindCollectionName, `./${kind.toLowerCase()}`)
+        this.imports.name(source, kindCollectionName, `./${kindCollectionName.toLowerCase()}`)
         
         const exportParamsStatement = ts.createTypeAliasDeclaration(
           undefined,
